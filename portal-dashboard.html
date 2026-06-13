@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c27;
+    --border:    #242836;
+    --muted:     #3a3f52;
+    --text-dim:  #6b7490;
+    --text:      #c8cfe8;
+    --text-hi:   #eef0f8;
+    --accent:    #4f8ef7;
+    --good:      #34c98b;
+    --warn:      #f5a623;
+    --bad:       #e84c6b;
+    --radius:    14px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 15px;
+    overflow: hidden;
+  }
+
+  /* ── LAYOUT ─────────────────────────────────────────── */
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: 1fr auto;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── LEFT — PHOTO SLIDESHOW ──────────────────────────── */
+  .photo-pane {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out;
+  }
+  .slide.active { opacity: 1; }
+
+  /* vignette so text on top is legible */
+  .photo-pane::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      transparent 60%,
+      rgba(15,17,23,0.7) 100%
+    );
+    pointer-events: none;
+  }
+
+  /* slide counter dots */
+  .dots {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transition: background 0.3s;
+  }
+  .dot.active { background: #fff; }
+
+  /* clock overlay on photo */
+  .clock-overlay {
+    position: absolute;
+    top: 28px;
+    left: 28px;
+    z-index: 10;
+  }
+  .clock-time {
+    font-family: 'DM Serif Display', serif;
+    font-size: 72px;
+    line-height: 1;
+    color: #fff;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.6);
+    letter-spacing: -1px;
+  }
+  .clock-date {
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.75);
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── RIGHT — INFO PANEL ──────────────────────────────── */
+  .info-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 18px 18px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  /* section card */
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .card-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  /* ── TFL STATUS ──────────────────────────────────────── */
+  .tfl-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tfl-roundel {
+    flex-shrink: 0;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: #003087;
+    border: 4px solid #c00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.05em;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .tfl-info { flex: 1; min-width: 0; }
+
+  .tfl-line-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-hi);
+  }
+
+  .tfl-summary {
+    font-size: 13px;
+    margin-top: 3px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .status-pill::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-good  { background: rgba(52,201,139,0.12); color: var(--good); }
+  .status-good::before  { background: var(--good); }
+  .status-warn  { background: rgba(245,166,35,0.12); color: var(--warn); }
+  .status-warn::before  { background: var(--warn); }
+  .status-bad   { background: rgba(232,76,107,0.12); color: var(--bad); }
+  .status-bad::before   { background: var(--bad); }
+
+  /* disruption detail rows */
+  .disruption-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .disruption-item {
+    font-size: 12px;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    padding: 5px 9px;
+    border-left: 3px solid var(--warn);
+  }
+
+  /* ── JOURNEY TIME ────────────────────────────────────── */
+  .journey-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .journey-duration {
+    font-family: 'DM Serif Display', serif;
+    font-size: 44px;
+    line-height: 1;
+    color: var(--text-hi);
+  }
+  .journey-unit {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .journey-detail { flex: 1; }
+  .journey-route {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .journey-route strong { color: var(--text); font-weight: 500; }
+  .journey-via {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .journey-updated {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .journey-traffic-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .journey-traffic-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+    background: var(--good);
+  }
+
+  /* ── WEATHER STUB ────────────────────────────────────── */
+  .weather-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .weather-temp {
+    font-family: 'DM Serif Display', serif;
+    font-size: 38px;
+    color: var(--text-hi);
+    line-height: 1;
+  }
+  .weather-icon { font-size: 34px; line-height: 1; }
+  .weather-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .weather-location {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── FOOTER ──────────────────────────────────────────── */
+  .footer {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-right { display: flex; gap: 16px; align-items: center; }
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .spinner {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .spinner.active { opacity: 1; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* scrollbar */
+  .info-panel::-webkit-scrollbar { width: 4px; }
+  .info-panel::-webkit-scrollbar-track { background: transparent; }
+  .info-panel::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── LEFT: PHOTO SLIDESHOW ── -->
+  <div class="photo-pane" id="photoPane">
+    <!-- Slides injected by JS -->
+    <div class="clock-overlay">
+      <div class="clock-time" id="clockTime">--:--</div>
+      <div class="clock-date" id="clockDate"></div>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <!-- ── RIGHT: INFO PANEL ── -->
+  <div class="info-panel">
+
+    <!-- TfL Northern Line -->
+    <div class="card" id="tflCard">
+      <div class="card-label">Northern Line · TfL</div>
+      <div class="tfl-status">
+        <div class="tfl-roundel">UNDER<br>GROUND</div>
+        <div class="tfl-info">
+          <div class="tfl-line-name">Northern line</div>
+          <div class="tfl-summary" id="tflSummary">Checking status…</div>
+          <div id="tflPill"></div>
+          <div class="disruption-list" id="tflDisruptions"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Journey Time -->
+    <div class="card">
+      <div class="card-label">Journey · Morden → Home</div>
+      <div class="journey-row">
+        <div>
+          <div class="journey-duration" id="journeyMins">--</div>
+          <div class="journey-unit">mins</div>
+        </div>
+        <div class="journey-detail">
+          <div class="journey-route">
+            <strong>Morden Station</strong> to <strong>Farnham GU9 9FT</strong>
+          </div>
+          <div class="journey-via" id="journeyVia">via A3 / A31</div>
+          <div class="journey-traffic-bar">
+            <div class="journey-traffic-fill" id="trafficFill" style="width:0%"></div>
+          </div>
+          <div class="journey-updated" id="journeyUpdated">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weather (Open-Meteo, no key needed) -->
+    <div class="card" id="weatherCard">
+      <div class="card-label">Weather · Farnham</div>
+      <div class="weather-row">
+        <div>
+          <div class="weather-temp" id="weatherTemp">--°</div>
+          <div class="weather-desc" id="weatherDesc">Loading…</div>
+          <div class="weather-location">GU9, Surrey</div>
+        </div>
+        <div class="weather-icon" id="weatherIcon">🌡</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="footer">
+    <span>Personal Dashboard</span>
+    <div class="footer-right">
+      <span><span class="spinner" id="spinner"></span>Updates every 60 s</span>
+      <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+      <span id="lastRefresh"></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  CONFIGURATION
+// ════════════════════════════════════════════════════════
+
+// Add your 10 photo URLs here. They can be:
+//  - Local paths if served from a local server: './photos/1.jpg'
+//  - Google Photos direct image URLs (right-click → Copy image address)
+//  - Any public HTTPS image URL
+const PHOTOS = [
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80', // placeholder 1
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=80', // placeholder 2
+  'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1200&q=80', // placeholder 3
+  'https://images.unsplash.com/photo-1511895426328-dc8714191011?w=1200&q=80', // placeholder 4
+  'https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=1200&q=80', // placeholder 5
+  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=80', // placeholder 6
+  'https://images.unsplash.com/photo-1484665754804-74b091211472?w=1200&q=80', // placeholder 7
+  'https://images.unsplash.com/photo-1519671282429-b44b4f17b8a1?w=1200&q=80', // placeholder 8
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80', // placeholder 9
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80', // placeholder 10
+];
+
+const SLIDE_INTERVAL_MS = 8000;   // 8 s per photo
+const REFRESH_INTERVAL_MS = 60000; // 60 s data refresh
+
+// Farnham coords for weather & as journey destination proxy
+const HOME_LAT = 51.2141;
+const HOME_LNG = -0.7996;
+
+// Morden Station coords
+const MORDEN_LAT = 51.4017;
+const MORDEN_LNG = -0.1948;
+
+// ════════════════════════════════════════════════════════
+//  CLOCK
+// ════════════════════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('clockTime').textContent = `${h}:${m}`;
+  document.getElementById('clockDate').textContent = now.toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+// ════════════════════════════════════════════════════════
+//  PHOTO SLIDESHOW
+// ════════════════════════════════════════════════════════
+let currentSlide = 0;
+
+function buildSlideshow() {
+  const pane = document.getElementById('photoPane');
+  const dotsEl = document.getElementById('dots');
+
+  PHOTOS.forEach((url, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'slide' + (i === 0 ? ' active' : '');
+    slide.style.backgroundImage = `url('${url}')`;
+    pane.insertBefore(slide, pane.querySelector('.clock-overlay'));
+
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dotsEl.appendChild(dot);
+  });
+
+  setInterval(nextSlide, SLIDE_INTERVAL_MS);
+}
+
+function nextSlide() {
+  const slides = document.querySelectorAll('.slide');
+  const dots   = document.querySelectorAll('.dot');
+  slides[currentSlide].classList.remove('active');
+  dots[currentSlide].classList.remove('active');
+  currentSlide = (currentSlide + 1) % PHOTOS.length;
+  slides[currentSlide].classList.add('active');
+  dots[currentSlide].classList.add('active');
+}
+
+buildSlideshow();
+
+// ════════════════════════════════════════════════════════
+//  TFL NORTHERN LINE  (TfL Unified API – no key needed)
+// ════════════════════════════════════════════════════════
+// TfL direct URL — proxied through allorigins.win to bypass CORS
+const TFL_URL = 'https://api.tfl.gov.uk/Line/northern/Status';
+const TFL_PROXIED = `https://api.allorigins.win/get?url=${encodeURIComponent(TFL_URL)}`;
+
+async function fetchTfl() {
+  try {
+    // Try direct first (works if Portal's WebView allows it), then proxy
+    let data;
+    try {
+      const res = await fetch(TFL_URL, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error('direct failed');
+      data = await res.json();
+    } catch {
+      // Fall back to CORS proxy
+      const res = await fetch(TFL_PROXIED);
+      if (!res.ok) throw new Error('proxy failed');
+      const wrapper = await res.json();
+      data = JSON.parse(wrapper.contents);
+    }
+
+    const line     = data[0];
+    const statuses = line.lineStatuses || [];
+    const summary  = statuses[0]?.statusSeverityDescription || 'Unknown';
+    const severity = statuses[0]?.statusSeverity; // 10 = Good service
+
+    document.getElementById('tflSummary').textContent =
+      statuses[0]?.reason ? '' : summary;
+
+    // pill colour
+    let pillClass = 'status-good';
+    if (severity === 10)     pillClass = 'status-good';
+    else if (severity >= 5)  pillClass = 'status-warn';
+    else                     pillClass = 'status-bad';
+
+    document.getElementById('tflPill').innerHTML =
+      `<div class="status-pill ${pillClass}">${summary}</div>`;
+
+    // disruption detail rows
+    const disrupts = statuses.filter(s => s.reason);
+    document.getElementById('tflDisruptions').innerHTML = disrupts.map(d =>
+      `<div class="disruption-item">${d.reason}</div>`
+    ).join('');
+
+  } catch (e) {
+    document.getElementById('tflSummary').textContent = 'Unable to load status';
+    document.getElementById('tflPill').innerHTML =
+      '<div class="status-pill status-warn">Check tfl.gov.uk</div>';
+    console.error('TfL error:', e);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  JOURNEY TIME  (Open Route Service – free, no key demo)
+//  For production, sign up for a free ORS key at
+//  openrouteservice.org and replace JOURNEY_API_KEY below,
+//  or use the Google Maps Distance Matrix API.
+// ════════════════════════════════════════════════════════
+const JOURNEY_API_KEY = 'YOUR_ORS_API_KEY'; // ← replace
+
+async function fetchJourney() {
+  try {
+    // Using ORS Directions API
+    const body = {
+      coordinates: [
+        [MORDEN_LNG, MORDEN_LAT],
+        [HOME_LNG,   HOME_LAT  ]
+      ]
+    };
+
+    const res = await fetch(
+      'https://api.openrouteservice.org/v2/directions/driving-car/json',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': JOURNEY_API_KEY
+        },
+        body: JSON.stringify(body)
+      }
+    );
+
+    if (!res.ok) throw new Error('ORS error');
+    const data = await res.json();
+    const route = data.routes[0].summary;
+    const mins  = Math.round(route.duration / 60);
+    const km    = (route.distance / 1000).toFixed(0);
+
+    document.getElementById('journeyMins').textContent = mins;
+    document.getElementById('journeyVia').textContent  = `${km} km via A3 / A31`;
+
+    // traffic colour: green <45, amber 45-75, red 75+
+    const fill = document.getElementById('trafficFill');
+    const pct  = Math.min(100, (mins / 90) * 100);
+    fill.style.width = pct + '%';
+    fill.style.background = mins < 45 ? 'var(--good)' : mins < 75 ? 'var(--warn)' : 'var(--bad)';
+
+    document.getElementById('journeyUpdated').textContent =
+      `Updated ${new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'})}`;
+
+  } catch(e) {
+    // Fallback: show static estimate with note
+    document.getElementById('journeyMins').textContent = '~55';
+    document.getElementById('journeyVia').textContent  = 'Estimated · add ORS API key for live';
+    document.getElementById('journeyUpdated').textContent = 'API key needed for live journey times';
+    document.getElementById('trafficFill').style.width = '60%';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  WEATHER  (Open-Meteo – completely free, no key needed)
+// ════════════════════════════════════════════════════════
+const WMO_CODES = {
+  0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Foggy',48:'Icy fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',
+  61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',
+  77:'Snow grains',80:'Light showers',81:'Showers',82:'Heavy showers',
+  85:'Snow showers',86:'Heavy snow showers',95:'Thunderstorm',
+  96:'Thunderstorm + hail',99:'Thunderstorm + heavy hail'
+};
+const WMO_ICONS = {
+  0:'☀️',1:'🌤',2:'⛅️',3:'☁️',45:'🌫',48:'🌫',
+  51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',
+  71:'🌨',73:'❄️',75:'❄️',77:'🌨',80:'🌦',81:'🌧',82:'🌧',
+  85:'🌨',86:'❄️',95:'⛈',96:'⛈',99:'⛈'
+};
+
+async function fetchWeather() {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${HOME_LAT}&longitude=${HOME_LNG}` +
+      `&current=temperature_2m,weathercode&temperature_unit=celsius&timezone=Europe%2FLondon`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const cur  = data.current;
+    const code = cur.weathercode;
+
+    document.getElementById('weatherTemp').textContent =
+      `${Math.round(cur.temperature_2m)}°`;
+    document.getElementById('weatherDesc').textContent =
+      WMO_CODES[code] || 'Unknown';
+    document.getElementById('weatherIcon').textContent =
+      WMO_ICONS[code] || '🌡';
+
+  } catch(e) {
+    document.getElementById('weatherDesc').textContent = 'Unable to load';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  ORCHESTRATION
+// ════════════════════════════════════════════════════════
+async function refreshAll() {
+  const spinner = document.getElementById('spinner');
+  spinner.classList.add('active');
+  await Promise.all([fetchTfl(), fetchJourney(), fetchWeather()]);
+  spinner.classList.remove('active');
+  document.getElementById('lastRefresh').textContent =
+    `Last: ${new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}`;
+}
+
+// Initial load
+refreshAll();
+
+// Auto-refresh every 60 s
+setInterval(refreshAll, REFRESH_INTERVAL_MS);
+</script>
+</body>
+</html>
